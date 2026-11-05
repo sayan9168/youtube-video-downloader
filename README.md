@@ -39,6 +39,7 @@ FastAPI  ──►  job queue  ──►  yt-dlp (thread)  ──►  ffmpeg  �
 - **PWA** — installable on Android/iOS/desktop, works offline for the shell, service worker caches the UI.
 - **Demo mode** — `DEMO_MODE=1` serves sample data and bundled media so the whole UI can be explored without contacting YouTube.
 - **Automatic cleanup** — finished files are deleted from disk after `MAX_FILE_AGE_SECONDS` (default 1 hour).
+- **Cloudflare Pages ready** — `python3 scripts/build_pages.py` produces a static `dist/`; the UI asks for the backend URL (gear icon) and remembers it, so the interface can live on Pages while downloads run on your server.
 
 ### Not included (yet)
 - **Direct streaming to the browser** — downloads are written to disk first, then served with HTTP `Range` support (so seeking/partial downloads still work). Streaming straight from yt-dlp would make accurate progress, zipping, retrying and cancellation unreliable, so it was intentionally left out.
@@ -106,6 +107,74 @@ below. Data (temporary downloads) lives in the `./data` volume.
 
 ---
 
+## ☁️ Hosting the interface on Cloudflare Pages
+
+Cloudflare Pages is a **static** host: it cannot run Python, `yt-dlp`, `ffmpeg`
+or background jobs. So the deployment is split in two:
+
+1. **Interface** (the files in this repo) → Cloudflare Pages, free.
+2. **Downloader backend** (this same app) → any machine that can run Python:
+   Docker on a VPS, Render, Fly.io, Railway, a Raspberry Pi behind a tunnel…
+
+The UI reads the backend URL at runtime from `/config.js` and from the
+**⚙️ settings dialog**, so nothing has to be rebuilt when the backend URL changes.
+
+### Deploy with the Cloudflare dashboard (no CLI)
+
+1. Push this repository to GitHub (it already is).
+2. In the Cloudflare dashboard open **Workers & Pages → Create → Pages →
+   Connect to Git** and pick the repository.
+3. Use these build settings:
+
+   | Setting | Value |
+   |---|---|
+   | Framework preset | *None* |
+   | Build command | `python3 scripts/build_pages.py` |
+   | Build output directory | `dist` |
+   | Environment variable | `PUBLIC_API_BASE` = `https://your-backend.example.com` (optional) |
+
+   The build script needs nothing but Python 3 — it renders the template
+   itself, and uses `jinja2` only when that is already installed.
+
+4. **Save and deploy.** You get `https://<project>.pages.dev`.
+5. Open the site. If the backend URL was not set at build time, the amber banner
+   asks for it — click **Connect backend**, paste the URL, press **Test
+   connection**, then **Save & reload**. The value is stored in `localStorage`.
+
+### Deploy with Wrangler
+
+```bash
+python3 scripts/build_pages.py --api-base https://your-backend.example.com
+npx wrangler pages deploy dist --project-name youtube-video-downloader
+# or simply (wrangler.toml already points at dist):
+npx wrangler pages deploy
+```
+
+`scripts/build_pages.py` renders the Jinja template, copies `static/`, writes
+`dist/config.js` (the backend URL), plus `_headers` (CSP, cache rules,
+`no-store` for `config.js`) and `_redirects` (single-page fallback). `dist/` is
+git-ignored: it is a build artifact.
+
+### Point the backend at that origin
+
+The API accepts cross-origin calls from any `*.pages.dev` site out of the box
+(`CORS_ORIGIN_REGEX`). If you serve the interface from a custom domain, start the
+backend with that origin listed:
+
+```bash
+CORS_ORIGINS=https://ytd.example.com uvicorn app:app --host 0.0.0.0 --port 8000
+# nginx/Caddy in front: TRUST_PROXY_HEADERS=true
+```
+
+Finished files stay on the backend, so downloads always come from it — the
+browser talks to the backend directly (CORS + `Content-Disposition: attachment`).
+
+> **Note:** Pages cannot proxy long downloads reliably (Workers have CPU,
+> subrequest and response-size limits), which is why the UI calls the backend
+> directly instead of routing `/api/*` through a Function.
+
+---
+
 ## ⚙️ Configuration
 
 All settings are environment variables — nothing needs editing in the code.
@@ -125,7 +194,9 @@ All settings are environment variables — nothing needs editing in the code.
 | `RATE_LIMIT_PER_MINUTE` | `120` | Default limit for API endpoints |
 | `RATE_LIMIT_DOWNLOADS_PER_MINUTE` | `30` | Limit for creating new downloads |
 | `TRUST_PROXY_HEADERS` | `false` | Use `X-Forwarded-For` for client IPs (behind nginx/Caddy) |
-| `CORS_ORIGINS` | *(empty)* | Comma separated origins if you embed the API elsewhere |
+| `CORS_ORIGINS` | *(empty)* | Extra origins allowed to call the API (the static UI on Cloudflare Pages) |
+| `CORS_ORIGIN_REGEX` | `https://([a-z0-9-]+\.)*pages\.dev` | Regex for allowed origins; set it to `""` to disable, or narrow it to your own domain |
+| `PUBLIC_API_BASE` | *(empty)* | Backend URL advertised in `/config.js` when the UI is hosted elsewhere |
 | `FFMPEG_LOCATION` | *(auto)* | Explicit path to ffmpeg (file or directory) |
 | `DEMO_MODE` | `false` | Serve bundled sample data instead of YouTube |
 
@@ -209,7 +280,10 @@ youtube-video-downloader/
 │   ├── icons/              # PWA icons
 │   └── demo/               # Tiny sample media for DEMO_MODE
 ├── tests/test_app.py       # API + queue tests (no network needed)
+├── tests/test_pages_build.py   # Cloudflare Pages build output tests
 ├── scripts/generate_assets.py  # Regenerate icons / demo media
+├── scripts/build_pages.py      # Build the static Cloudflare Pages site (dist/)
+├── wrangler.toml           # Pages project settings for the Wrangler CLI
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
@@ -227,6 +301,8 @@ python -m pytest -q
 The suite fakes the yt-dlp layer, so it runs offline and covers info parsing,
 job lifecycle, progress, zip packaging, cancellation, batch queueing, ffmpeg
 guards, validation, SSRF protection on the thumbnail proxy and rate limiting.
+`tests/test_pages_build.py` builds the Cloudflare Pages bundle and checks that
+the interface, `config.js`, `_headers` and `_redirects` are all present.
 
 ---
 
@@ -272,6 +348,38 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 ইন্টারফেস বাংলায় হয়ে যাবে। একটি প্লেলিস্ট লিংক দিলে সব ভিডিওর তালিকা দেখাবে —
 যেগুলো দরকার শুধু সেগুলো সিলেক্ট করে এক ফাইলে (zip) ডাউনলোড করতে পারবেন।
 একাধিক লিংক একসাথে দিতে প্রতিটি লিংক আলাদা লাইনে পেস্ট করুন।
+
+### ☁️ Cloudflare Pages-এ হোস্ট করা
+
+Cloudflare Pages শুধু স্ট্যাটিক ফাইল চালায় — Python, yt-dlp বা ffmpeg চলে না।
+তাই দুটি অংশ লাগবে:
+
+1. **ইন্টারফেস** → Cloudflare Pages (ফ্রি)।
+2. **ডাউনলোডার ব্যাকএন্ড** → যে কোনো Python হোস্ট (Docker VPS, Render, Fly.io)।
+
+ড্যাশবোর্ডে **Workers & Pages → Create → Pages → Connect to Git** দিয়ে রিপো
+যোগ করুন, তারপর:
+
+```
+Build command:            python3 scripts/build_pages.py
+Build output directory:   dist
+Environment variable:     PUBLIC_API_BASE = https://your-backend.example.com  (ঐচ্ছিক)
+```
+
+অথবা লোকালি:
+
+```bash
+python3 scripts/build_pages.py --api-base https://your-backend.example.com
+npx wrangler pages deploy dist --project-name youtube-video-downloader
+```
+
+সাইট খোলার পর উপরের ⚙️ বাটনে ক্লিক করে ব্যাকএন্ড URL বসিয়ে **Test connection**
+→ **Save & reload** চাপুন (URL ব্রাউজারে সেভ থাকে, রিবিল্ড লাগে না)। ব্যাকএন্ডে
+`*.pages.dev` অরিজিন ডিফল্টেই অনুমোদিত; কাস্টম ডোমেইন হলে ব্যাকএন্ড চালান:
+
+```bash
+CORS_ORIGINS=https://ytd.example.com uvicorn app:app --host 0.0.0.0 --port 8000
+```
 
 শুধু নিজের বা অনুমতি আছে এমন কনটেন্ট ডাউনলোড করুন — কপিরাইট ও ইউটিউবের
 শর্তাবলি মানুন।

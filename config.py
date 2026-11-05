@@ -154,6 +154,9 @@ class Settings:
     # Demo / offline showcase mode (no network calls to YouTube)
     demo_mode: bool = field(default_factory=lambda: _env_bool("DEMO_MODE", False))
 
+    # URL of a static frontend (e.g. Cloudflare Pages) that may call this API
+    public_api_base: str = field(default_factory=lambda: _env_str("PUBLIC_API_BASE", ""))
+
     # Optional CORS origins for embedding the API elsewhere
     cors_origins: tuple[str, ...] = field(
         default_factory=lambda: tuple(
@@ -161,6 +164,12 @@ class Settings:
             for origin in _env_str("CORS_ORIGINS", "").split(",")
             if origin.strip()
         )
+    )
+    # Cloudflare Pages deployments (<project>.pages.dev) are allowed by default so
+    # a static frontend works without extra configuration. Set
+    # CORS_ORIGIN_REGEX="" to disable, or narrow it to your own domain.
+    cors_origin_regex: str = field(
+        default_factory=lambda: _env_str("CORS_ORIGIN_REGEX", r"https://([a-z0-9-]+\.)*pages\.dev")
     )
 
     @property

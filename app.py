@@ -22,6 +22,7 @@ Always respect YouTube's Terms of Service and copyright laws.
 from __future__ import annotations
 
 import asyncio
+import json
 import mimetypes
 import re
 import time
@@ -73,10 +74,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-if settings.cors_origins:
+if settings.cors_origins or settings.cors_origin_regex:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
+        allow_origin_regex=settings.cors_origin_regex or None,
         allow_credentials=False,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["*"],
@@ -389,6 +391,23 @@ async def service_worker():
         settings.static_dir / "sw.js",
         media_type="application/javascript",
         headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+    )
+
+
+@app.get("/config.js", include_in_schema=False)
+async def runtime_config():
+    """Runtime configuration read by the UI before it boots.
+
+    The static build on Cloudflare Pages ships its own copy of this file; when
+    the API serves the UI itself the base is normally empty (same origin).
+    """
+    body = "window.YTD_CONFIG = Object.assign({ apiBase: %s }, window.YTD_CONFIG || {});\n" % json.dumps(
+        settings.public_api_base
+    )
+    return Response(
+        content=body,
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store"},
     )
 
 

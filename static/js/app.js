@@ -6,6 +6,43 @@
 (() => {
   'use strict';
 
+  /* ----------------------------------------------------------- environment */
+  const RUNTIME_CONFIG = Object.assign({ apiBase: '' }, window.YTD_CONFIG || {});
+
+  function readStoredApiBase() {
+    try {
+      return localStorage.getItem('ytd.apiBase') || '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /** Normalise a user supplied backend URL ("api.example.com" -> https://...). */
+  function normaliseApiBase(value) {
+    let base = String(value || '').trim();
+    if (!base) return '';
+    if (!/^https?:\/\//i.test(base)) base = `https://${base.replace(/^\/+/, '')}`;
+    base = base.replace(/\/+$/, '');
+    // Same origin means "talk to the server that rendered this page".
+    if (base === window.location.origin) return '';
+    return base;
+  }
+
+  // A URL saved from the settings dialog wins over the build-time default.
+  let API_BASE = normaliseApiBase(readStoredApiBase()) || normaliseApiBase(RUNTIME_CONFIG.apiBase);
+
+  function apiUrl(path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    return `${API_BASE}${path}`;
+  }
+
+  /** Absolute URL for an asset that may be served by the backend. */
+  function resolveAsset(url) {
+    if (!url) return '';
+    if (/^(https?:|data:|blob:)/i.test(url)) return url;
+    return url.startsWith('/') ? `${API_BASE}${url}` : url;
+  }
+
   /* ------------------------------------------------------------------ i18n */
   const I18N = {
     en: {
@@ -134,6 +171,11 @@
       'err.no_file': 'The download finished but no file was produced.',
       'err.queue_full': 'The queue is full. Please wait for it to finish.',
       'err.rate_limited': 'Too many requests. Please wait a moment.',
+      'err.job_canceled': 'The download was canceled.',
+      'err.job_not_cancellable': 'This download has already finished.',
+      'err.job_running': 'Cancel the download before removing it.',
+      'err.job_timeout': 'The download took too long. Try the queue instead.',
+      'err.not_found': 'Not found.',
       'err.job_not_found': 'This download is no longer available.',
       'err.job_not_ready': 'This download is still running.',
       'err.file_expired': 'This file has expired. Please download again.',
@@ -145,6 +187,20 @@
 
       'aria.theme': 'Toggle dark / light mode',
       'aria.language': 'Change language',
+      'aria.settings': 'Backend connection',
+      'backend.banner': 'The downloader backend is not connected. Add your API URL to start.',
+      'backend.connect': 'Connect backend',
+      'settings.title': 'Backend connection',
+      'settings.hint': 'This page only serves the interface. Run the downloader backend (Docker, VPS, Render…) and paste its URL here. Leave it empty when the app is served by its own backend.',
+      'settings.apiBase': 'Backend URL',
+      'settings.test': 'Test connection',
+      'settings.testing': 'Checking…',
+      'settings.ok': 'Connected',
+      'settings.fail': 'Could not reach that backend',
+      'settings.reset': 'Use this site',
+      'settings.save': 'Save & reload',
+      'settings.close': 'Close',
+      'err.backend_offline': 'The backend is not connected. Add its URL in the settings.',
       'footer.disclaimer': 'For personal and educational use only. Respect copyright and YouTube’s Terms of Service.',
       'footer.builtWith': 'Built with FastAPI + yt-dlp',
     },
@@ -275,6 +331,11 @@
       'err.no_file': 'ডাউনলোড শেষ কিন্তু কোনো ফাইল তৈরি হয়নি।',
       'err.queue_full': 'কিউ ভরে গেছে। শেষ হওয়ার জন্য অপেক্ষা করুন।',
       'err.rate_limited': 'অনেক বেশি অনুরোধ। একটু পরে চেষ্টা করুন।',
+      'err.job_canceled': 'ডাউনলোডটি বাতিল করা হয়েছে।',
+      'err.job_not_cancellable': 'এই ডাউনলোডটি আগেই শেষ হয়ে গেছে।',
+      'err.job_running': 'মুছে ফেলার আগে ডাউনলোডটি বাতিল করুন।',
+      'err.job_timeout': 'ডাউনলোডে অনেক সময় লেগেছে। কিউ ব্যবহার করে দেখুন।',
+      'err.not_found': 'পাওয়া যায়নি।',
       'err.job_not_found': 'এই ডাউনলোড আর পাওয়া যাচ্ছে না।',
       'err.job_not_ready': 'ডাউনলোড এখনো চলছে।',
       'err.file_expired': 'ফাইলটির সময় শেষ। আবার ডাউনলোড করুন।',
@@ -286,6 +347,20 @@
 
       'aria.theme': 'ডার্ক / লাইট মোড বদলান',
       'aria.language': 'ভাষা পরিবর্তন',
+      'aria.settings': 'ব্যাকএন্ড সংযোগ',
+      'backend.banner': 'ডাউনলোডার ব্যাকএন্ড সংযুক্ত নেই। শুরু করতে আপনার API URL দিন।',
+      'backend.connect': 'ব্যাকএন্ড যুক্ত করুন',
+      'settings.title': 'ব্যাকএন্ড সংযোগ',
+      'settings.hint': 'এই পেজটি শুধু ইন্টারফেস দেখায়। ডাউনলোডার ব্যাকএন্ড (Docker, VPS, Render…) চালু করে তার URL এখানে দিন। অ্যাপটি নিজের ব্যাকএন্ড থেকে চললে খালি রাখুন।',
+      'settings.apiBase': 'ব্যাকএন্ড URL',
+      'settings.test': 'সংযোগ পরীক্ষা',
+      'settings.testing': 'পরীক্ষা হচ্ছে…',
+      'settings.ok': 'সংযুক্ত',
+      'settings.fail': 'ওই ব্যাকএন্ডে পৌঁছানো যাচ্ছে না',
+      'settings.reset': 'এই সাইট ব্যবহার করুন',
+      'settings.save': 'সেভ করে রিলোড',
+      'settings.close': 'বন্ধ করুন',
+      'err.backend_offline': 'ব্যাকএন্ড সংযুক্ত নেই। সেটিংসে তার URL দিন।',
       'footer.disclaimer': 'শুধু ব্যক্তিগত ও শিক্ষামূলক ব্যবহারের জন্য। কপিরাইট ও ইউটিউবের শর্তাবলি মানুন।',
       'footer.builtWith': 'FastAPI + yt-dlp দিয়ে তৈরি',
     },
@@ -332,6 +407,7 @@
     pollTimer: null,
     history: [],
     online: navigator.onLine,
+    backendOnline: true,
   };
 
   const el = {};
@@ -352,6 +428,8 @@
       'queueList', 'queueEmpty', 'queueCount', 'clearFinishedBtn',
       'historyList', 'historyEmpty', 'historyHint', 'clearHistoryBtn',
       'themeToggle', 'themeIcon', 'toasts', 'versionText',
+      'settingsBtn', 'settingsDialog', 'settingsClose', 'settingsSave', 'settingsReset',
+      'settingsTest', 'apiBaseInput', 'settingsStatus', 'backendBanner', 'backendBannerBtn',
     ].forEach((id) => {
       el[id] = $(id);
     });
@@ -437,7 +515,7 @@
       init.headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(options.body);
     }
-    const response = await fetch(path, init);
+    const response = await fetch(apiUrl(path), init);
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
     if (!response.ok) {
@@ -557,6 +635,7 @@
   }
 
   async function onFetch() {
+    if (!requireBackend()) return;
     hideError();
     const urls = parseUrls(el.urlInput.value);
     if (!urls.length) {
@@ -617,7 +696,7 @@
   }
 
   async function onBatchQueue() {
-    if (!state.batchUrls.length) return;
+    if (!state.batchUrls.length || !requireBackend()) return;
     el.batchBtn.disabled = true;
     try {
       const options = presetValueToOptions(el.batchPreset.value);
@@ -642,7 +721,7 @@
   function renderVideo(info) {
     state.formatId = null;
     el.videoSection.classList.remove('hidden');
-    el.thumb.src = info.thumbnail || '';
+    el.thumb.src = resolveAsset(info.thumbnail);
     el.thumb.alt = info.title || '';
     el.thumbDuration.textContent = info.duration_str || '';
     el.thumbDuration.classList.toggle('hidden', !info.duration_str);
@@ -896,7 +975,7 @@
   }
 
   async function onDownload() {
-    if (!state.info) return;
+    if (!state.info || !requireBackend()) return;
     hideError();
     let options;
     try {
@@ -950,7 +1029,7 @@
       row.innerHTML = `
         <span class="checkbox"><input type="checkbox" checked /></span>
         <span class="p-index">${entry.index}</span>
-        <img loading="lazy" src="${escapeHtml(entry.thumbnail || '')}" alt="" />
+        <img loading="lazy" src="${escapeHtml(resolveAsset(entry.thumbnail))}" alt="" />
         <span class="p-title">${escapeHtml(entry.title || '')}</span>
         <span class="p-duration">${escapeHtml(entry.duration_str || '')}</span>`;
       const checkbox = row.querySelector('input');
@@ -1016,6 +1095,7 @@
 
   async function onPlaylistDownload() {
     if (!state.playlistInfo || !state.playlistSelected.size) return;
+    if (!requireBackend()) return;
     hideError();
     const options = presetValueToOptions(el.playlistQuality.value);
     options.playlist = true;
@@ -1109,7 +1189,7 @@
   function jobThumb(job) {
     const thumb = job.thumbnail || job.options?.thumbnail;
     if (!thumb) return '';
-    return `<img class="job-thumb" loading="lazy" src="${escapeHtml(thumb)}" alt="" onerror="this.style.display='none'" />`;
+    return `<img class="job-thumb" loading="lazy" src="${escapeHtml(resolveAsset(thumb))}" alt="" onerror="this.style.display='none'" />`;
   }
 
   function renderQueue() {
@@ -1150,7 +1230,7 @@
       if (isActive) {
         actions.push(`<button type="button" class="btn btn-sm btn-ghost" data-action="cancel"><svg class="icon"><use href="#i-stop"/></svg><span>${escapeHtml(t('btn.cancel'))}</span></button>`);
       } else if (job.status === 'completed') {
-        actions.push(`<a class="btn btn-sm btn-accent" data-action="save" href="${escapeHtml(job.download_url || `/api/jobs/${job.id}/file`)}" download="${escapeHtml(job.result_name || '')}"><svg class="icon"><use href="#i-download"/></svg><span>${escapeHtml(t('btn.saveFile'))}</span></a>`);
+        actions.push(`<a class="btn btn-sm btn-accent" data-action="save" href="${escapeHtml(apiUrl(job.download_url || `/api/jobs/${job.id}/file`))}" download="${escapeHtml(job.result_name || '')}"><svg class="icon"><use href="#i-download"/></svg><span>${escapeHtml(t('btn.saveFile'))}</span></a>`);
       } else {
         actions.push(`<button type="button" class="btn btn-sm btn-ghost" data-action="retry"><svg class="icon"><use href="#i-refresh"/></svg><span>${escapeHtml(t('btn.retry'))}</span></button>`);
       }
@@ -1201,8 +1281,10 @@
     let data;
     try {
       data = await api('/api/jobs');
+      if (!state.backendOnline) setBackendOnline(true);
     } catch (error) {
       state.online = navigator.onLine;
+      if (backendUnreachable(error)) setBackendOnline(false);
       schedulePoll(4000);
       return;
     }
@@ -1255,7 +1337,7 @@
     if (state.autoDownloadId === job.id) {
       state.autoDownloadId = null;
       const anchor = document.createElement('a');
-      anchor.href = job.download_url || `/api/jobs/${job.id}/file`;
+      anchor.href = apiUrl(job.download_url || `/api/jobs/${job.id}/file`);
       anchor.download = job.result_name || '';
       document.body.appendChild(anchor);
       anchor.click();
@@ -1284,6 +1366,7 @@
   }
 
   async function retryJob(job) {
+    if (!requireBackend()) return;
     try {
       const options = { ...(job.options || {}) };
       delete options.url;
@@ -1347,7 +1430,7 @@
       node.className = 'history-item';
       const meta = [modeSummary({ mode: entry.mode, options: entry.options }), entry.size, relTime(entry.at)].filter(Boolean);
       node.innerHTML = `
-        ${entry.thumbnail ? `<img loading="lazy" src="${escapeHtml(entry.thumbnail)}" alt="" onerror="this.style.display='none'" />` : ''}
+        ${entry.thumbnail ? `<img loading="lazy" src="${escapeHtml(resolveAsset(entry.thumbnail))}" alt="" onerror="this.style.display='none'" />` : ''}
         <div class="h-info">
           <div class="h-title">${escapeHtml(entry.title || entry.url)}</div>
           <div class="h-meta">${meta.map((bit) => `<span>${escapeHtml(bit)}</span>`).join('')}</div>
@@ -1381,6 +1464,7 @@
   }
 
   async function redownload(entry) {
+    if (!requireBackend()) return;
     try {
       const options = { ...(entry.options || {}) };
       delete options.url;
@@ -1412,9 +1496,9 @@
     const base = `${info.title || 'thumbnail'} [thumbnail]`;
     let href;
     if (info.thumbnail.startsWith('/')) {
-      href = info.thumbnail;
+      href = resolveAsset(info.thumbnail);
     } else {
-      href = `/api/thumbnail?url=${encodeURIComponent(info.thumbnail)}&name=${encodeURIComponent(base)}`;
+      href = apiUrl(`/api/thumbnail?url=${encodeURIComponent(info.thumbnail)}&name=${encodeURIComponent(base)}`);
     }
     const anchor = document.createElement('a');
     anchor.href = href;
@@ -1423,6 +1507,91 @@
     anchor.click();
     anchor.remove();
     toast(t('toast.thumbnailSaved'), 'success', 3000);
+  }
+
+  /* -------------------------------------------------------------- backend */
+  function showBackendBanner() {
+    el.backendBanner.classList.remove('hidden');
+  }
+
+  function hideBackendBanner() {
+    el.backendBanner.classList.add('hidden');
+  }
+
+  function setSettingsStatus(message, kind = '') {
+    el.settingsStatus.textContent = message || '';
+    el.settingsStatus.className = `hint${kind ? ` ${kind}` : ''}`;
+  }
+
+  function openSettings() {
+    el.apiBaseInput.value = API_BASE || readStoredApiBase();
+    setSettingsStatus('');
+    try {
+      if (typeof el.settingsDialog.showModal === 'function') el.settingsDialog.showModal();
+    } catch (_) {
+      /* browsers without <dialog> support fall back to the open attribute */
+    }
+    if (!el.settingsDialog.hasAttribute('open')) el.settingsDialog.setAttribute('open', '');
+    el.apiBaseInput.focus();
+  }
+
+  function closeSettings() {
+    try {
+      if (typeof el.settingsDialog.close === 'function') el.settingsDialog.close();
+    } catch (_) {}
+    el.settingsDialog.removeAttribute('open');
+  }
+
+  function saveApiBase() {
+    const base = normaliseApiBase(el.apiBaseInput.value);
+    try {
+      if (base) localStorage.setItem('ytd.apiBase', base);
+      else localStorage.removeItem('ytd.apiBase');
+    } catch (_) {}
+    window.location.reload();
+  }
+
+  function resetApiBase() {
+    try {
+      localStorage.removeItem('ytd.apiBase');
+    } catch (_) {}
+    window.location.reload();
+  }
+
+  async function testApiBase() {
+    const base = normaliseApiBase(el.apiBaseInput.value);
+    setSettingsStatus(t('settings.testing'));
+    try {
+      const response = await fetch(`${base}/api/health`, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const extras = [data.version ? `v${data.version}` : '', data.demo ? 'demo' : ''].filter(Boolean).join(' · ');
+      setSettingsStatus(`${t('settings.ok')}${extras ? ` — ${extras}` : ''}`, 'ok');
+    } catch (_) {
+      setSettingsStatus(t('settings.fail'), 'error');
+    }
+  }
+
+  /** True when the failure means "there is no backend here" rather than a hiccup. */
+  function backendUnreachable(error) {
+    if (!error) return true;
+    if (error.status === undefined) return true; // network error, CORS block, DNS…
+    return error.status === 404 || error.status === 405 || error.status === 501;
+  }
+
+  function setBackendOnline(online) {
+    state.backendOnline = online;
+    if (online) hideBackendBanner();
+    else showBackendBanner();
+  }
+
+  /** Returns false (and opens the settings) when no backend is reachable. */
+  function requireBackend() {
+    if (state.backendOnline) return true;
+    showBackendBanner();
+    toast(t('err.backend_offline'), 'error');
+    openSettings();
+    return false;
   }
 
   /* ------------------------------------------------------------------ pwa */
@@ -1470,6 +1639,25 @@
     el.subtitleFormat.addEventListener('change', savePrefs);
     el.embedSubs.addEventListener('change', savePrefs);
     el.themeToggle.addEventListener('click', () => setTheme(state.theme === 'dark' ? 'light' : 'dark'));
+    el.settingsBtn.addEventListener('click', openSettings);
+    el.backendBannerBtn.addEventListener('click', openSettings);
+    el.settingsClose.addEventListener('click', closeSettings);
+    el.settingsSave.addEventListener('click', saveApiBase);
+    el.settingsReset.addEventListener('click', resetApiBase);
+    el.settingsTest.addEventListener('click', testApiBase);
+    el.settingsDialog.addEventListener('click', (event) => {
+      if (event.target === el.settingsDialog) closeSettings();
+    });
+    el.settingsDialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      closeSettings();
+    });
+    el.apiBaseInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveApiBase();
+      }
+    });
     document.querySelectorAll('[data-lang]').forEach((button) => {
       button.addEventListener('click', () => setLang(button.dataset.lang));
     });
@@ -1505,8 +1693,10 @@
 
     try {
       state.config = await api('/api/config');
+      setBackendOnline(true);
     } catch (_) {
       state.config = null;
+      setBackendOnline(false);
     }
     if (state.config) {
       el.demoBanner.classList.toggle('hidden', !state.config.demo_mode);

@@ -308,3 +308,48 @@ def test_format_selector_honours_quality():
 
 def test_url_normalisation_adds_scheme():
     assert downloader.normalize_youtube_url("youtu.be/abcdefghijk") == "https://youtu.be/abcdefghijk"
+
+
+# ==================== static frontend hosting ====================
+def test_runtime_config_is_javascript(client):
+    response = client.get("/config.js")
+    assert response.status_code == 200
+    assert "javascript" in response.headers["content-type"]
+    assert "window.YTD_CONFIG" in response.text
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_runtime_config_carries_public_api_base(client):
+    original = settings.public_api_base
+    object.__setattr__(settings, "public_api_base", "https://api.example.com")
+    try:
+        body = client.get("/config.js").text
+    finally:
+        object.__setattr__(settings, "public_api_base", original)
+    assert '"https://api.example.com"' in body
+
+
+def test_cors_allows_cloudflare_pages_frontend(client):
+    """A static Pages build calls this API cross-origin, so preflight must pass."""
+    origin = "https://youtube-video-downloader.pages.dev"
+    response = client.options(
+        "/api/config",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == origin
+
+
+def test_cors_rejects_unknown_origin(client):
+    response = client.options(
+        "/api/config",
+        headers={
+            "Origin": "https://evil.example.com",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert response.headers.get("access-control-allow-origin") != "https://evil.example.com"
