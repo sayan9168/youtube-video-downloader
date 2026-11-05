@@ -1,0 +1,49 @@
+{
+  "name": "YouTube Downloader",
+  "short_name": "YT Downloader",
+  "description": "Download YouTube videos, MP3 audio, playlists and subtitles from your own server.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["utilities", "entertainment", "productivity"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Download queue",
+      "short_name": "Queue",
+      "url": "/#queue",
+      "description": "See running and finished downloads"
+    },
+    {
+      "name": "History",
+      "short_name": "History",
+      "url": "/#history",
+      "description": "Previously downloaded videos"
+    }
+  ]
+}

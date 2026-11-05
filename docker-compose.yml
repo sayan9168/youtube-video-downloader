@@ -1,0 +1,31 @@
+services:
+  downloader:
+    build: .
+    image: youtube-video-downloader:latest
+    container_name: youtube-downloader
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Finished files and temp data live here; keep it on a real disk.
+      - ./data:/data
+    environment:
+      DOWNLOAD_DIR: /data
+      MAX_CONCURRENT_DOWNLOADS: "2"      # parallel downloads
+      MAX_QUEUE_SIZE: "50"
+      MAX_PLAYLIST_ENTRIES: "100"
+      MAX_FILE_AGE_SECONDS: "3600"       # delete finished files after 1 hour
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_PER_MINUTE: "120"
+      RATE_LIMIT_DOWNLOADS_PER_MINUTE: "30"
+      # Set to 1 to explore the UI without contacting YouTube.
+      DEMO_MODE: "0"
+      # Set to 1 when the container sits behind nginx / Caddy / Traefik.
+      TRUST_PROXY_HEADERS: "0"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true

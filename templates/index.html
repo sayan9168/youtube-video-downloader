@@ -1,359 +1,417 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>YouTube Video Downloader</title>
-  <meta name="description" content="Fast, free and modern YouTube video downloader. Download videos in high quality." />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>YouTube Downloader — Video, Audio, Playlists &amp; Subtitles</title>
+  <meta name="description" content="Self-hosted YouTube downloader: save videos, MP3 audio, whole playlists and subtitles in the quality you want. Progress, queue, history, dark/light mode and Bengali UI." />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="YT Downloader" />
+
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/static/icons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/static/css/app.css?v={{ version }}" />
+
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#fef2f2',
-              100: '#fee2e2',
-              200: '#fecaca',
-              300: '#fca5a5',
-              400: '#f87171',
-              500: '#ef4444',
-              600: '#dc2626',
-              700: '#b91c1c',
-              800: '#991b1b',
-              900: '#7f1d1d',
-            }
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-          }
+    // Apply the saved theme/lang before paint to avoid a flash of the wrong theme.
+    (function () {
+      try {
+        var theme = localStorage.getItem('ytd.theme');
+        if (!theme) {
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
-      }
-    }
+        document.documentElement.dataset.theme = theme;
+        var lang = localStorage.getItem('ytd.lang');
+        if (lang) document.documentElement.lang = lang;
+      } catch (e) {}
+    })();
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .glass {
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .loader {
-      width: 22px;
-      height: 22px;
-      border: 3px solid rgba(255,255,255,0.2);
-      border-top-color: #ef4444;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .format-card:hover { transform: translateY(-2px); }
-    .fade-in { animation: fadeIn 0.4s ease-out; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body>
 
-  <!-- Background gradient -->
-  <div class="fixed inset-0 -z-10 overflow-hidden">
-    <div class="absolute -top-40 -right-40 w-96 h-96 bg-brand-600/20 rounded-full blur-3xl"></div>
-    <div class="absolute top-1/2 -left-40 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl"></div>
-  </div>
+  <!-- ============================= icon sprite ============================= -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-logo" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M21.6 7.2a2.7 2.7 0 0 0-1.9-1.9C18 4.8 12 4.8 12 4.8s-6 0-7.7.5A2.7 2.7 0 0 0 2.4 7.2C2 8.9 2 12 2 12s0 3.1.4 4.8a2.7 2.7 0 0 0 1.9 1.9c1.7.5 7.7.5 7.7.5s6 0 7.7-.5a2.7 2.7 0 0 0 1.9-1.9c.4-1.7.4-4.8.4-4.8s0-3.1-.4-4.8zM10 15.5v-7l6 3.5-6 3.5z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M7 4.5v15M17 4.5v15M2.5 9.5H7M2.5 14.5H7M17 9.5h4.5M17 14.5h4.5"/></symbol>
+    <symbol id="i-subtitle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="M6 15h5M13.5 15H18M6 11h3.5M12 11h6"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8L12 3.5z"/><path d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.5" cy="10" r="1.6"/><path d="M3.5 17l5-4.5 4 3.5 3-2.5 5 4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.8h5V7M6.5 7l.9 12.2h9.2L17.5 7M10.2 11v5M13.8 11v5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.8 3.8v5h-5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4.5 4.5L19 7"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h11M4 12h11M4 17.5h7"/><path d="M16.5 15l4 2.5-4 2.5v-5z"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 13.5a4.5 4.5 0 0 0 6.4 0l2-2a4.5 4.5 0 0 0-6.4-6.4l-1.1 1.1"/><path d="M13.5 10.5a4.5 4.5 0 0 0-6.4 0l-2 2a4.5 4.5 0 0 0 6.4 6.4l1.1-1.1"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c4.2 4.7 4.2 12.3 0 17M12 3.5c-4.2 4.7-4.2 12.3 0 17"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8 21 20H3L12 3.8z"/><path d="M12 9.5v4.2M12 16.8h.01"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M8 5.2v13.6L19 12 8 5.2z"/></symbol>
+    <symbol id="i-playlist" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h11M4 12h11M4 17.5h6"/><path d="M15 12.5 21 16.5 15 20.5v-8z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><path d="M8.4 8.2 20 19M8.4 15.8 20 5"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.8h17M8 3.5v3M16 3.5v3"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.8 20c.9-3.6 3.7-5.3 7.2-5.3s6.3 1.7 7.2 5.3"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-5.5-5.5z"/><path d="M13.5 3.5V9H19"/></symbol>
+  </svg>
 
-  <div class="max-w-3xl mx-auto px-4 py-10 sm:py-16">
-
-    <!-- Header -->
-    <header class="text-center mb-10">
-      <div class="inline-flex items-center gap-2 bg-brand-600/10 text-brand-400 text-sm font-medium px-4 py-1.5 rounded-full mb-5 border border-brand-600/20">
-        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
-        YouTube Downloader
+  <!-- ================================ header =============================== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
+        <span>
+          <span class="brand-name" data-i18n="app.name">YouTube Downloader</span>
+          <span class="brand-tag" data-i18n="app.tagline">Fast • Free • High quality</span>
+        </span>
+      </a>
+      <div class="header-actions">
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" data-lang="en" aria-pressed="true" data-i18n-aria="aria.language">EN</button>
+          <button type="button" data-lang="bn" aria-pressed="false" data-i18n-aria="aria.language">বাংলা</button>
+        </div>
+        <button type="button" class="btn-icon" id="themeToggle" aria-label="Toggle theme" data-i18n-aria="aria.theme">
+          <svg class="icon" id="themeIcon"><use href="#i-moon"/></svg>
+        </button>
       </div>
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">
-        Download YouTube Videos
-        <span class="block text-brand-500 mt-1">Fast • Free • High Quality</span>
+    </div>
+  </header>
+
+  <main class="shell">
+
+    <!-- ================================ hero =============================== -->
+    <section class="hero">
+      <div class="hero-badge">
+        <svg class="icon" style="width:14px;height:14px"><use href="#i-sparkle"/></svg>
+        <span data-i18n="hero.badge">Videos • MP3 • Playlists • Subtitles</span>
+      </div>
+      <h1>
+        <span data-i18n="hero.title">Download YouTube videos</span>
+        <span data-i18n="hero.highlight">Fast • Free • High quality</span>
       </h1>
-      <p class="text-slate-400 text-base max-w-lg mx-auto">
-        Paste any YouTube link and download videos or audio in the quality you want.
+      <p data-i18n="hero.subtitle">Paste a link, pick a quality and save the file. Everything runs on your own server.</p>
+    </section>
+
+    <div id="demoBanner" class="demo-banner hidden">
+      <svg class="icon"><use href="#i-alert"/></svg>
+      <span data-i18n="demo.banner">Demo mode is on: sample data is used and nothing is sent to YouTube.</span>
+    </div>
+
+    <!-- ============================== url input ============================ -->
+    <section class="card">
+      <label class="field" for="urlInput">
+        <span class="label" data-i18n="input.label">YouTube URL</span>
+      </label>
+      <div class="input-row">
+        <textarea
+          id="urlInput"
+          class="textarea"
+          rows="1"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="https://www.youtube.com/watch?v=..."
+          data-i18n-placeholder="input.placeholder"
+        ></textarea>
+        <button type="button" class="btn btn-primary" id="fetchBtn">
+          <svg class="icon"><use href="#i-search"/></svg>
+          <span id="fetchBtnLabel" data-i18n="input.getInfo">Get info</span>
+          <span class="spinner hidden" id="fetchSpinner"></span>
+        </button>
+      </div>
+      <p class="hint">
+        <svg class="icon"><use href="#i-link"/></svg>
+        <span data-i18n="input.hint">Supports videos, Shorts, live replays and playlists. Paste several links (one per line) for batch download.</span>
       </p>
-    </header>
 
-    <!-- Main Card -->
-    <div class="glass rounded-2xl p-6 sm:p-8 shadow-2xl">
+      <div class="alert alert-error hidden" id="errorBox" role="alert">
+        <svg class="icon"><use href="#i-alert"/></svg>
+        <div class="alert-body" id="errorText"></div>
+        <button type="button" class="alert-close" id="errorClose" aria-label="Close">
+          <svg class="icon" style="width:16px;height:16px"><use href="#i-x"/></svg>
+        </button>
+      </div>
 
-      <!-- URL Input -->
-      <div class="space-y-4">
-        <label class="block text-sm font-medium text-slate-300">YouTube URL</label>
-        <div class="flex flex-col sm:flex-row gap-3">
-          <input
-            id="urlInput"
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-            class="flex-1 bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
-            autocomplete="off"
-          />
-          <button
-            id="fetchBtn"
-            onclick="fetchInfo()"
-            class="bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white font-semibold px-6 py-3.5 rounded-xl transition flex items-center justify-center gap-2 min-w-[140px]"
-          >
-            <span id="fetchBtnText">Get Info</span>
-            <div id="fetchLoader" class="loader hidden"></div>
+      <!-- batch (multiple links) -->
+      <div id="batchSection" class="hidden" style="margin-top:18px">
+        <div class="playlist-head">
+          <strong id="batchCount"></strong>
+          <span class="meta" data-i18n="batch.hint">All links are queued with the settings below.</span>
+        </div>
+        <div class="grid-2">
+          <label class="field" style="margin:0">
+            <span class="label" data-i18n="batch.preset">Quality for all links</span>
+            <select class="select" id="batchPreset">
+              <option value="best" data-i18n="preset.best">Best quality</option>
+              <option value="best_mp4" data-i18n="preset.mp4">MP4 (H.264)</option>
+              <option value="1080">1080p</option>
+              <option value="720">720p</option>
+              <option value="480">480p</option>
+              <option value="audio_mp3" data-i18n="preset.audioMp3">MP3 audio</option>
+              <option value="audio_m4a" data-i18n="preset.audioM4a">M4A audio</option>
+            </select>
+          </label>
+        </div>
+        <div class="batch-list" id="batchList"></div>
+        <div class="action-row" style="margin-top:14px">
+          <button type="button" class="btn btn-accent btn-block" id="batchBtn">
+            <svg class="icon"><use href="#i-queue"/></svg>
+            <span id="batchBtnLabel" data-i18n="btn.addToQueue">Add to queue</span>
           </button>
         </div>
-        <p class="text-xs text-slate-500">Supports normal videos, Shorts, and live recordings</p>
+      </div>
+    </section>
+
+    <!-- ============================== video info =========================== -->
+    <section class="card hidden" id="videoSection">
+      <div class="media">
+        <div class="thumb-wrap">
+          <img id="thumb" alt="" src="" />
+          <span class="thumb-duration" id="thumbDuration"></span>
+        </div>
+        <div class="media-body">
+          <h2 class="media-title" id="videoTitle"></h2>
+          <div class="media-meta">
+            <span id="metaUploader"><svg class="icon"><use href="#i-user"/></svg><span></span></span>
+            <span id="metaViews"><svg class="icon"><use href="#i-eye"/></svg><span></span></span>
+            <span id="metaDuration"><svg class="icon"><use href="#i-clock"/></svg><span></span></span>
+            <span id="metaDate"><svg class="icon"><use href="#i-calendar"/></svg><span></span></span>
+          </div>
+          <p class="media-desc" id="videoDesc"></p>
+          <div class="media-actions">
+            <button type="button" class="btn btn-sm btn-ghost" id="saveThumbBtn">
+              <svg class="icon"><use href="#i-image"/></svg>
+              <span data-i18n="btn.saveThumbnail">Save thumbnail</span>
+            </button>
+            <a class="btn btn-sm btn-ghost hidden" id="openOnYouTube" target="_blank" rel="noopener">
+              <svg class="icon"><use href="#i-logo"/></svg>
+              <span data-i18n="btn.openYouTube">Open on YouTube</span>
+            </a>
+          </div>
+        </div>
       </div>
 
-      <!-- Error -->
-      <div id="errorBox" class="hidden mt-5 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl px-4 py-3 text-sm"></div>
+      <div class="divider"></div>
 
-      <!-- Video Info -->
-      <div id="infoSection" class="hidden mt-8 fade-in">
-        <div class="flex flex-col sm:flex-row gap-5">
-          <img id="thumbnail" src="" alt="Thumbnail" class="w-full sm:w-48 h-auto rounded-xl object-cover border border-slate-700" />
-          <div class="flex-1 space-y-2">
-            <h2 id="videoTitle" class="text-lg font-semibold leading-snug"></h2>
-            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
-              <span id="uploader"></span>
-              <span id="duration"></span>
-              <span id="views"></span>
+      <h3 class="subgroup-title">
+        <svg class="icon"><use href="#i-download"/></svg>
+        <span data-i18n="section.options">Choose what to download</span>
+      </h3>
+      <div class="presets" id="presets"></div>
+
+      <details class="advanced" id="advanced">
+        <summary>
+          <svg class="icon" style="width:16px;height:16px"><use href="#i-sparkle"/></svg>
+          <span data-i18n="btn.showAdvanced">Advanced options</span>
+          <svg class="icon chev" style="width:16px;height:16px"><use href="#i-chevron"/></svg>
+        </summary>
+        <div class="advanced-body">
+
+          <div class="grid-2" id="audioOptions">
+            <label class="field" style="margin:0">
+              <span class="label" data-i18n="opt.audioFormat">Audio format</span>
+              <select class="select" id="audioFormat">
+                <option value="mp3">MP3</option>
+                <option value="m4a">M4A (AAC)</option>
+                <option value="opus">Opus</option>
+                <option value="best" data-i18n="opt.noConvert">Original (no convert)</option>
+              </select>
+            </label>
+            <label class="field" style="margin:0">
+              <span class="label" data-i18n="opt.audioQuality">Audio quality</span>
+              <select class="select" id="audioQuality">
+                <option value="320">320 kbps</option>
+                <option value="256">256 kbps</option>
+                <option value="192" selected>192 kbps</option>
+                <option value="128">128 kbps</option>
+                <option value="96">96 kbps</option>
+              </select>
+            </label>
+          </div>
+
+          <div>
+            <div class="subgroup-title">
+              <svg class="icon"><use href="#i-film"/></svg>
+              <span data-i18n="section.format">Exact format</span>
+            </div>
+            <div class="format-list" id="formatList"></div>
+          </div>
+
+          <div>
+            <div class="subgroup-title">
+              <svg class="icon"><use href="#i-subtitle"/></svg>
+              <span data-i18n="section.subtitles">Subtitles</span>
+            </div>
+            <div class="chips" id="subtitleChips"></div>
+            <p class="hint hidden" id="noSubsNote" data-i18n="opt.noSubs">No subtitles are available for this video.</p>
+            <div class="grid-2" style="margin-top:12px">
+              <label class="field" style="margin:0">
+                <span class="label" data-i18n="opt.subtitleFormat">Subtitle format</span>
+                <select class="select" id="subtitleFormat">
+                  <option value="srt">SRT (.srt)</option>
+                  <option value="vtt">VTT (.vtt)</option>
+                </select>
+              </label>
+              <label class="checkbox" style="align-self:end;padding-bottom:10px" id="embedWrap">
+                <input type="checkbox" id="embedSubs" />
+                <span data-i18n="opt.embedSubs">Embed subtitles into the video</span>
+              </label>
             </div>
           </div>
-        </div>
 
-        <!-- Formats -->
-        <div class="mt-6">
-          <h3 class="text-sm font-medium text-slate-300 mb-3">Select Quality</h3>
-          <div id="formatsList" class="grid gap-2 max-h-72 overflow-y-auto pr-1 custom-scroll"></div>
-        </div>
+          <div>
+            <div class="subgroup-title">
+              <svg class="icon"><use href="#i-scissors"/></svg>
+              <span data-i18n="section.trim">Trim / cut</span>
+            </div>
+            <div class="grid-2">
+              <label class="field" style="margin:0">
+                <span class="label" data-i18n="opt.trimStart">Start time</span>
+                <input class="input" id="trimStart" type="text" inputmode="numeric" placeholder="0:00" />
+              </label>
+              <label class="field" style="margin:0">
+                <span class="label" data-i18n="opt.trimEnd">End time</span>
+                <input class="input" id="trimEnd" type="text" inputmode="numeric" placeholder="1:30" />
+              </label>
+            </div>
+            <p class="hint" data-i18n="opt.trimHint">Example: 1:30 or 90 (seconds). Leave empty to download the whole video.</p>
+          </div>
 
-        <!-- Download Button -->
-        <div class="mt-6 flex flex-col sm:flex-row gap-3">
-          <button
-            id="downloadBtn"
-            onclick="startDownload()"
-            disabled
-            class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            <span id="downloadBtnText">Download</span>
-            <div id="downloadLoader" class="loader hidden"></div>
-          </button>
+          <label class="field" style="margin:0">
+            <span class="label" data-i18n="section.filename">File name (optional)</span>
+            <input class="input" id="filenameInput" type="text" maxlength="120" placeholder="" data-i18n-placeholder="opt.filenamePlaceholder" />
+          </label>
+
+          <div class="alert alert-warn hidden" id="ffmpegNote">
+            <svg class="icon"><use href="#i-alert"/></svg>
+            <div class="alert-body" data-i18n="opt.ffmpegMissing">ffmpeg is not installed on the server, so MP3 conversion, trimming and format merging are disabled.</div>
+          </div>
+        </div>
+      </details>
+
+      <div style="margin-top:18px">
+        <button type="button" class="btn btn-accent btn-block" id="downloadBtn" disabled>
+          <svg class="icon"><use href="#i-download"/></svg>
+          <span id="downloadBtnLabel" data-i18n="btn.download">Download</span>
+          <span class="spinner hidden" id="downloadSpinner"></span>
+        </button>
+        <div class="hidden" id="inlineProgress" style="margin-top:14px">
+          <div class="progress indeterminate" id="inlineProgressBar"><div class="progress-fill" id="inlineProgressFill"></div></div>
+          <div class="progress-note" id="inlineProgressNote"></div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Disclaimer -->
-    <div class="mt-8 text-center text-xs text-slate-500 space-y-1">
-      <p>⚠️ For personal and educational use only. Respect copyright & YouTube Terms of Service.</p>
-      <p>Do not download or redistribute content you do not own or have rights to.</p>
-    </div>
+    <!-- ============================== playlist ============================= -->
+    <section class="card hidden" id="playlistSection">
+      <div class="playlist-head">
+        <h2 class="media-title" id="playlistTitle" style="font-size:1.05rem"></h2>
+        <span class="counter" id="playlistCount"></span>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="selectAllBtn" data-i18n="btn.selectAll">Select all</button>
+        <button type="button" class="btn btn-sm btn-ghost" id="selectNoneBtn" data-i18n="btn.selectNone">Clear selection</button>
+      </div>
+      <p class="hint" id="playlistHint"></p>
+      <div class="playlist-list" id="playlistList" style="margin-top:10px"></div>
+      <div class="action-row" style="margin-top:14px">
+        <button type="button" class="btn btn-accent btn-block" id="playlistDownloadBtn">
+          <svg class="icon"><use href="#i-download"/></svg>
+          <span id="playlistDownloadLabel" data-i18n="btn.downloadSelected">Download selected</span>
+        </button>
+      </div>
+      <div class="grid-3" style="margin-top:14px">
+        <label class="field" style="margin:0">
+          <span class="label" data-i18n="opt.playlistQuality">Quality for all</span>
+          <select class="select" id="playlistQuality">
+            <option value="best" data-i18n="preset.best">Best quality</option>
+            <option value="best_mp4" data-i18n="preset.mp4">MP4 (H.264)</option>
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="480">480p</option>
+            <option value="audio_mp3" data-i18n="preset.audioMp3">MP3 audio</option>
+            <option value="audio_m4a" data-i18n="preset.audioM4a">M4A audio</option>
+          </select>
+        </label>
+        <label class="field" style="margin:0">
+          <span class="label" data-i18n="opt.subtitleLang">Subtitle language</span>
+          <select class="select" id="playlistSubtitle">
+            <option value="" data-i18n="opt.subsNone">No subtitles</option>
+            <option value="en">English</option>
+            <option value="bn">বাংলা (Bengali)</option>
+            <option value="hi">हिन्दी (Hindi)</option>
+          </select>
+        </label>
+        <label class="field" style="margin:0">
+          <span class="label" data-i18n="section.filename">File name (optional)</span>
+          <input class="input" id="playlistFilename" maxlength="80" placeholder="" />
+        </label>
+      </div>
+    </section>
 
-    <!-- Footer -->
-    <footer class="mt-10 text-center text-sm text-slate-600">
-      Built with ❤️ using FastAPI + yt-dlp
+    <!-- =============================== queue ============================== -->
+    <section class="card">
+      <div class="card-head">
+        <h2>
+          <svg class="icon"><use href="#i-queue"/></svg>
+          <span data-i18n="section.queue">Download queue</span>
+        </h2>
+        <span class="counter hidden" id="queueCount">0</span>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="clearFinishedBtn">
+          <svg class="icon"><use href="#i-trash"/></svg>
+          <span data-i18n="queue.clearFinished">Clear finished</span>
+        </button>
+      </div>
+      <div id="queueList" class="jobs"></div>
+      <div class="empty-state hidden" id="queueEmpty">
+        <svg class="icon"><use href="#i-queue"/></svg>
+        <span data-i18n="queue.empty">No downloads yet. Paste a link above to get started.</span>
+      </div>
+    </section>
+
+    <!-- ============================== history ============================= -->
+    <section class="card">
+      <div class="card-head">
+        <h2>
+          <svg class="icon"><use href="#i-clock"/></svg>
+          <span data-i18n="section.history">History</span>
+        </h2>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-sm btn-ghost" id="clearHistoryBtn">
+          <svg class="icon"><use href="#i-trash"/></svg>
+          <span data-i18n="history.clear">Clear history</span>
+        </button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+      <div class="empty-state hidden" id="historyEmpty">
+        <svg class="icon"><use href="#i-clock"/></svg>
+        <span data-i18n="history.empty">Nothing here yet.</span>
+      </div>
+      <p class="hint" id="historyHint"></p>
+    </section>
+
+    <!-- =============================== footer ============================= -->
+    <footer class="foot">
+      <p class="legal" data-i18n="footer.disclaimer">For personal and educational use only. Respect copyright and YouTube's Terms of Service.</p>
+      <p>
+        <span data-i18n="footer.builtWith">Built with FastAPI + yt-dlp</span>
+        · v<span id="versionText">{{ version }}</span>
+      </p>
     </footer>
-  </div>
+  </main>
 
-  <script>
-    let currentUrl = "";
-    let selectedFormatId = null;
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
-    const urlInput = document.getElementById("urlInput");
-    const fetchBtn = document.getElementById("fetchBtn");
-    const fetchBtnText = document.getElementById("fetchBtnText");
-    const fetchLoader = document.getElementById("fetchLoader");
-    const errorBox = document.getElementById("errorBox");
-    const infoSection = document.getElementById("infoSection");
-    const downloadBtn = document.getElementById("downloadBtn");
-    const downloadBtnText = document.getElementById("downloadBtnText");
-    const downloadLoader = document.getElementById("downloadLoader");
-
-    // Enter key support
-    urlInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") fetchInfo();
-    });
-
-    function showError(msg) {
-      errorBox.textContent = msg;
-      errorBox.classList.remove("hidden");
-    }
-
-    function hideError() {
-      errorBox.classList.add("hidden");
-    }
-
-    function setLoading(btn, textEl, loader, isLoading, defaultText) {
-      if (isLoading) {
-        textEl.classList.add("hidden");
-        loader.classList.remove("hidden");
-        btn.disabled = true;
-      } else {
-        textEl.classList.remove("hidden");
-        loader.classList.add("hidden");
-        btn.disabled = false;
-        textEl.textContent = defaultText;
-      }
-    }
-
-    async function fetchInfo() {
-      const url = urlInput.value.trim();
-      if (!url) {
-        showError("Please paste a YouTube URL first");
-        return;
-      }
-
-      hideError();
-      infoSection.classList.add("hidden");
-      selectedFormatId = null;
-      downloadBtn.disabled = true;
-
-      setLoading(fetchBtn, fetchBtnText, fetchLoader, true, "Get Info");
-
-      try {
-        const res = await fetch("/api/info", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.detail || "Failed to fetch video info");
-        }
-
-        currentUrl = url;
-        renderInfo(data);
-      } catch (err) {
-        showError(err.message || "Something went wrong. Please try again.");
-      } finally {
-        setLoading(fetchBtn, fetchBtnText, fetchLoader, false, "Get Info");
-      }
-    }
-
-    function renderInfo(data) {
-      document.getElementById("thumbnail").src = data.thumbnail || "";
-      document.getElementById("videoTitle").textContent = data.title || "Untitled";
-      document.getElementById("uploader").textContent = data.uploader ? `👤 ${data.uploader}` : "";
-      
-      if (data.duration) {
-        const m = Math.floor(data.duration / 60);
-        const s = data.duration % 60;
-        document.getElementById("duration").textContent = `⏱️ ${m}:${s.toString().padStart(2, "0")}`;
-      } else {
-        document.getElementById("duration").textContent = "";
-      }
-
-      if (data.view_count) {
-        document.getElementById("views").textContent = `👁️ ${data.view_count.toLocaleString()} views`;
-      } else {
-        document.getElementById("views").textContent = "";
-      }
-
-      const list = document.getElementById("formatsList");
-      list.innerHTML = "";
-
-      if (!data.formats || data.formats.length === 0) {
-        list.innerHTML = `<p class="text-slate-500 text-sm">No downloadable formats found.</p>`;
-        return;
-      }
-
-      data.formats.forEach((f, idx) => {
-        const isAudio = f.is_audio;
-        const label = isAudio
-          ? `Audio only • ${f.ext.toUpperCase()} • ${f.filesize_str}`
-          : `${f.resolution || "Video"} • ${f.ext.toUpperCase()} • ${f.filesize_str}${f.fps ? ` • ${f.fps}fps` : ""}`;
-
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = `format-card w-full text-left px-4 py-3 rounded-xl border transition ${
-          idx === 0
-            ? "border-brand-500 bg-brand-600/10 text-white"
-            : "border-slate-700 bg-slate-900/50 hover:border-slate-500 text-slate-300"
-        }`;
-        card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium">${label}</span>
-            <span class="text-xs ${isAudio ? 'text-purple-400' : 'text-emerald-400'}">${isAudio ? 'AUDIO' : 'VIDEO'}</span>
-          </div>
-        `;
-
-        card.onclick = () => {
-          // Deselect all
-          document.querySelectorAll(".format-card").forEach(c => {
-            c.className = "format-card w-full text-left px-4 py-3 rounded-xl border transition border-slate-700 bg-slate-900/50 hover:border-slate-500 text-slate-300";
-          });
-          // Select this
-          card.className = "format-card w-full text-left px-4 py-3 rounded-xl border transition border-brand-500 bg-brand-600/10 text-white";
-          selectedFormatId = f.format_id;
-          downloadBtn.disabled = false;
-        };
-
-        list.appendChild(card);
-
-        // Auto-select first
-        if (idx === 0) {
-          selectedFormatId = f.format_id;
-          downloadBtn.disabled = false;
-        }
-      });
-
-      infoSection.classList.remove("hidden");
-    }
-
-    async function startDownload() {
-      if (!currentUrl || !selectedFormatId) return;
-
-      hideError();
-      setLoading(downloadBtn, downloadBtnText, downloadLoader, true, "Download");
-
-      try {
-        const res = await fetch(`/api/download?format_id=${encodeURIComponent(selectedFormatId)}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: currentUrl })
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || "Download failed");
-        }
-
-        // Get filename from Content-Disposition if available
-        const disposition = res.headers.get("Content-Disposition");
-        let filename = "video.mp4";
-        if (disposition && disposition.includes("filename=")) {
-          const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-          if (match && match[1]) {
-            filename = match[1].replace(/['"]/g, "");
-          }
-        }
-
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-
-      } catch (err) {
-        showError(err.message || "Download failed. Try another quality or try again later.");
-      } finally {
-        setLoading(downloadBtn, downloadBtnText, downloadLoader, false, "Download");
-      }
-    }
-  </script>
+  <script src="/static/js/app.js?v={{ version }}" defer></script>
 </body>
 </html>

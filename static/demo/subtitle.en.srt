@@ -1,0 +1,15 @@
+1
+00:00:00,000 --> 00:00:03,000
+Demo mode is running.
+
+2
+00:00:03,000 --> 00:00:06,000
+Every feature of the downloader works without touching YouTube.
+
+3
+00:00:06,000 --> 00:00:09,000
+Queue several links to watch the progress bars.
+
+4
+00:00:09,000 --> 00:00:12,000
+Subtitles, playlists and history are all previewed here.

@@ -6,6 +6,7 @@ __pycache__/
 .Python
 venv/
 env/
+.venv/
 .env
 *.egg-info/
 dist/
@@ -19,6 +20,10 @@ downloads/
 *.m4a
 *.mp3
 
+# ...but keep the small demo assets and PWA icons that ship with the app
+!static/demo/*.mp4
+!static/demo/*.mp3
+
 # IDE
 .vscode/
 .idea/
@@ -28,6 +33,14 @@ downloads/
 # OS
 .DS_Store
 Thumbs.db
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Docker volume / local data
+data/
 
 # Logs
 *.log
