@@ -1,7 +1,7 @@
 /* Service worker: makes the UI installable and available offline.
    API calls are never cached, media downloads always go to the network. */
 
-const CACHE_VERSION = 'ytd-shell-v3';
+const CACHE_VERSION = 'ytd-shell-v4';
 const SHELL_ASSETS = [
   '/',
   '/static/css/app.css',

@@ -1,0 +1,19 @@
+# Cloudflare Pages configuration.
+#
+# The site is a static build of the interface: Cloudflare cannot run Python,
+# yt-dlp or ffmpeg, so the downloader backend lives on its own host and the UI
+# talks to it over HTTPS (see README "Hosting the interface on Cloudflare Pages").
+#
+# Deploy from a machine with Wrangler:
+#   npx wrangler login
+#   python3 scripts/build_pages.py --api-base https://your-backend.example.com
+#   npx wrangler pages deploy dist --project-name youtube-video-downloader
+#
+# Or connect this repository in the Cloudflare dashboard with
+#   build command:   python3 scripts/build_pages.py
+#   output directory: dist
+# and set PUBLIC_API_BASE in the project's environment variables.
+
+name = "youtube-video-downloader"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
